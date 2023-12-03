@@ -25,7 +25,8 @@ class SslContextFactory {
         }
         // We use protocol from first SslBundle and assume that all SslBundles use the same
         SSLContext sslContext = SSLContext.getInstance(bundles[0].getProtocol());
-        sslContext.init(getKeyManagers(bundles),
+        sslContext.init(
+            getKeyManagers(bundles),
             getTrustManagers(bundles),
             null);
         return sslContext;
@@ -39,7 +40,10 @@ class SslContextFactory {
         // We use protocol from first SslBundle and assume that all SslBundles use the same
         return SslContextBuilder
             .forClient()
+            // Assume first bundle has the key for client for
+            // mTls to work
             .keyManager(getKeyManagers(bundles)[0])
+            // Use the composite trust
             .trustManager(getTrustManagers(bundles)[0])
             .build();
     }
