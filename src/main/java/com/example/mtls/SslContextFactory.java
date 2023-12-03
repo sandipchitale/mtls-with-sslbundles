@@ -1,12 +1,11 @@
 package com.example.mtls;
 
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
 import org.springframework.boot.ssl.SslBundle;
 import org.springframework.stereotype.Component;
 
-import javax.net.ssl.KeyManager;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
+import javax.net.ssl.*;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
@@ -24,15 +23,38 @@ class SslContextFactory {
         if (bundles.length == 0) {
             return createEmptySslContext();
         }
+        // We use protocol from first SslBundle and assume that all SslBundles use the same
         SSLContext sslContext = SSLContext.getInstance(bundles[0].getProtocol());
-        sslContext.init(getKeyManagers(bundles), getTrustManagers(bundles), null);
+        sslContext.init(getKeyManagers(bundles),
+            getTrustManagers(bundles),
+            null);
         return sslContext;
+    }
+
+    SslContext buildReactorSslContext(SslBundle... bundles) throws KeyManagementException, NoSuchAlgorithmException, SSLException {
+        if (bundles.length == 0) {
+            return createEmptyReactorSslContext();
+        }
+
+        // We use protocol from first SslBundle and assume that all SslBundles use the same
+        return SslContextBuilder
+            .forClient()
+            .keyManager(getKeyManagers(bundles)[0])
+            .trustManager(getTrustManagers(bundles)[0])
+            .build();
     }
 
     private SSLContext createEmptySslContext() throws NoSuchAlgorithmException, KeyManagementException {
         SSLContext context = SSLContext.getInstance(SslBundle.DEFAULT_PROTOCOL);
         context.init(new KeyManager[0], new TrustManager[0], null);
         return context;
+    }
+
+    private SslContext createEmptyReactorSslContext() throws NoSuchAlgorithmException, KeyManagementException, SSLException {
+        return SslContextBuilder
+            .forClient()
+            .trustManager(new TrustManager() {})
+            .build();
     }
 
     private KeyManager[] getKeyManagers(SslBundle... bundles) {
@@ -54,11 +76,16 @@ class SslContextFactory {
                 }
             }
         }
+        // We wrap trust managers from SslBundles into a single CompositeX509TrustManager
+        // Although javax.net.ssl.SSLContext.init allows to pass in multiple TrustManagers,
+        // it will only use the first X509TrustManager. This is a X509TrustManager
+        // implementation, which delegates to multiple X509TrustManagers.
         return new TrustManager[]{new CompositeX509TrustManager(trustManagers)};
     }
 
-    // Although javax.net.ssl.SSLContext.init allows to pass in multiple TrustManagers, it will only use the
-    // first X509TrustManager. This is a X509TrustManager implementation, which delegates to multiple X509TrustManagers.
+    // Although javax.net.ssl.SSLContext.init allows to pass in multiple TrustManagers,
+    // it will only use the first X509TrustManager. This is a X509TrustManager implementation,
+    // which delegates to multiple X509TrustManagers.
     private static class CompositeX509TrustManager implements X509TrustManager {
         private final List<X509TrustManager> trustManagers;
 
