@@ -22,7 +22,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
-import javax.net.ssl.TrustManager;
 import java.net.http.HttpClient;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
@@ -94,8 +93,7 @@ class Clients {
             .setConnectionManager(httpClientConnectionManager)
             .evictExpiredConnections()
             .build();
-        HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory(closeableHttpClient);
-        return requestFactory;
+        return new HttpComponentsClientHttpRequestFactory(closeableHttpClient);
     }
 
     public RestClient getRestClientLoopback() {
